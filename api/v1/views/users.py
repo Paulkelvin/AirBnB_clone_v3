@@ -1,70 +1,77 @@
 #!/usr/bin/python3
-"""User API endpoint"""
-from flask import abort, jsonify, request
-from api.v1.views import app_views
+"""Create a new view for User objects"""
 from models import storage
 from models.user import User
+from api.v1.views import app_views
+from flask import jsonify, abort, request
+from flasgger.utils import swag_from
 
 
-@app_views.route("/users", methods=['GET'])
-def all_users():
-    """Return list of all users"""
-    users = storage.all("User")
-    return jsonify([user.to_dict() for user in users.values()]), 200
+@app_views.route('/users', methods=['GET'],
+                 strict_slashes=False)
+@swag_from('documentation/user/all_users.yml', methods=['GET'])
+def users():
+    """Get all stored users"""
+    res = [
+        user.to_dict() for user in storage.all(User).values()
+    ]
+    return jsonify(res)
 
 
-@app_views.route("/users/<user_id>", methods=['GET'])
-def get_user(user_id):
-    """Get single user based on user_id, or 404 if not found"""
-    user = storage.get("User", user_id)
-    if not user:
+@app_views.route('/users/<user_id>', methods=['GET'],
+                 strict_slashes=False)
+@swag_from('documentation/user/get_user.yml', methods=['GET'])
+def user_by_id(user_id):
+    """Get a User object by id"""
+    res = storage.get(User, user_id)
+    if res is None:
         abort(404)
-    return jsonify(user.to_dict()), 200
+    return jsonify(res.to_dict())
 
 
-@app_views.route("/users/<user_id>", methods=['DELETE'])
+@app_views.route('/users/<user_id>', methods=['DELETE'],
+                 strict_slashes=False)
+@swag_from('documentation/user/delete_user.yml', methods=['DELETE'])
 def delete_user(user_id):
-    """Delete individual user based on user_id, or 404 if not found"""
-    user = storage.get("User", user_id)
-    if not user:
+    """Delete an User object by its id """
+    user = storage.get(User, user_id)
+    if user is None:
         abort(404)
     user.delete()
     storage.save()
-    return jsonify({}), 200
+    return jsonify({})
 
 
-@app_views.route("/users", methods=['POST'])
-def create_user():
-    """Create new user from request JSON"""
-    user = request.get_json(silent=True)
-    if not user:
-        return jsonify(error="Not a JSON"), 400
-    if "email" not in user:
-        return jsonify(error="Missing email"), 400
-    if "password" not in user:
-        return jsonify(error="Missing password"), 400
-    user.pop("id", None)
-    user.pop("created_at", None)
-    user.pop("updated_at", None)
-    user = User(**user)
-    user.save()
-    return jsonify(user.to_dict()), 201
+@app_views.route('/users', methods=['POST'],
+                 strict_slashes=False)
+@swag_from('documentation/user/post_user.yml', methods=['POST'])
+def insert_user():
+    """Insert a new User object"""
+    body = request.get_json()
+    if type(body) != dict:
+        return abort(400, {'message': 'Not a JSON'})
+    if 'email' not in body:
+        return abort(400, {'message': 'Missing email'})
+    if 'password' not in body:
+        return abort(400, {'message': 'Missing password'})
+    new_user = User(**body)
+    new_user.save()
+    return jsonify(new_user.to_dict()), 201
 
 
-@app_views.route("/users/<user_id>", methods=['PUT'])
-def update_user(user_id):
-    """Update existing user based on user_id, or 404 if not found"""
-    user = storage.get("User", user_id)
-    if not user:
+@app_views.route('/users/<user_id>', methods=['PUT'],
+                 strict_slashes=False)
+@swag_from('documentation/user/put_user.yml', methods=['PUT'])
+def update_user_by_id(user_id):
+    """Update an User object"""
+    user = storage.get(User, user_id)
+    if user is None:
         abort(404)
-    updates = request.get_json(silent=True)
-    if not updates:
-        return jsonify(error="Not a JSON"), 400
-    updates.pop("id", None)
-    updates.pop("email", None)
-    updates.pop("created_at", None)
-    updates.pop("updated_at", None)
-    for k, v in updates.items():
-        setattr(user, k, v)
-    user.save()
+    body = request.get_json()
+    if type(body) != dict:
+        return abort(400, {'message': 'Not a JSON'})
+    for key, value in body.items():
+        if key not in ["id", "email", "created_at", "updated_at"]:
+            setattr(user, key, value)
+    storage.save()
     return jsonify(user.to_dict()), 200

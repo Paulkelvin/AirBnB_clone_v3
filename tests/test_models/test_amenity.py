@@ -5,12 +5,11 @@ Contains the TestAmenityDocs classes
 
 from datetime import datetime
 import inspect
+import models
 from models import amenity
 from models.base_model import BaseModel
-import os
 import pep8
 import unittest
-from sqlalchemy.orm.attributes import InstrumentedAttribute
 Amenity = amenity.Amenity
 
 
@@ -60,7 +59,6 @@ class TestAmenityDocs(unittest.TestCase):
 
 class TestAmenity(unittest.TestCase):
     """Test the Amenity class"""
-
     def test_is_subclass(self):
         """Test that Amenity is a subclass of BaseModel"""
         amenity = Amenity()
@@ -73,17 +71,20 @@ class TestAmenity(unittest.TestCase):
         """Test that Amenity has attribute name, and it's as an empty string"""
         amenity = Amenity()
         self.assertTrue(hasattr(amenity, "name"))
-        self.assertEqual(amenity.name, "")
+        if models.storage_t == 'db':
+            self.assertEqual(amenity.name, None)
+        else:
+            self.assertEqual(amenity.name, "")
 
     def test_to_dict_creates_dict(self):
         """test to_dict method creates a dictionary with proper attrs"""
         am = Amenity()
+        print(am.__dict__)
         new_d = am.to_dict()
         self.assertEqual(type(new_d), dict)
+        self.assertFalse("_sa_instance_state" in new_d)
         for attr in am.__dict__:
-            with self.subTest(attr=attr):
-                if attr == '_sa_instance_state':
-                    continue
+            if attr is not "_sa_instance_state":
                 self.assertTrue(attr in new_d)
         self.assertTrue("__class__" in new_d)
 
@@ -101,5 +102,5 @@ class TestAmenity(unittest.TestCase):
     def test_str(self):
         """test that the str method has the correct output"""
         amenity = Amenity()
-        string = "[Amenity] ({}) {}".format(amenity.id, amenity.to_dict())
+        string = "[Amenity] ({}) {}".format(amenity.id, amenity.__dict__)
         self.assertEqual(string, str(amenity))

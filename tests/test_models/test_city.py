@@ -5,12 +5,11 @@ Contains the TestCityDocs classes
 
 from datetime import datetime
 import inspect
+import models
 from models import city
 from models.base_model import BaseModel
-import os
 import pep8
 import unittest
-from sqlalchemy.orm.attributes import InstrumentedAttribute
 City = city.City
 
 
@@ -60,7 +59,6 @@ class TestCityDocs(unittest.TestCase):
 
 class TestCity(unittest.TestCase):
     """Test the City class"""
-
     def test_is_subclass(self):
         """Test that City is a subclass of BaseModel"""
         city = City()
@@ -73,23 +71,28 @@ class TestCity(unittest.TestCase):
         """Test that City has attribute name, and it's an empty string"""
         city = City()
         self.assertTrue(hasattr(city, "name"))
-        self.assertEqual(city.name, "")
+        if models.storage_t == 'db':
+            self.assertEqual(city.name, None)
+        else:
+            self.assertEqual(city.name, "")
 
     def test_state_id_attr(self):
         """Test that City has attribute state_id, and it's an empty string"""
         city = City()
         self.assertTrue(hasattr(city, "state_id"))
-        self.assertEqual(city.state_id, "")
+        if models.storage_t == 'db':
+            self.assertEqual(city.state_id, None)
+        else:
+            self.assertEqual(city.state_id, "")
 
     def test_to_dict_creates_dict(self):
         """test to_dict method creates a dictionary with proper attrs"""
         c = City()
         new_d = c.to_dict()
         self.assertEqual(type(new_d), dict)
+        self.assertFalse("_sa_instance_state" in new_d)
         for attr in c.__dict__:
-            with self.subTest(attr=attr):
-                if attr == '_sa_instance_state':
-                    continue
+            if attr is not "_sa_instance_state":
                 self.assertTrue(attr in new_d)
         self.assertTrue("__class__" in new_d)
 
@@ -107,5 +110,5 @@ class TestCity(unittest.TestCase):
     def test_str(self):
         """test that the str method has the correct output"""
         city = City()
-        string = "[City] ({}) {}".format(city.id, city.to_dict())
+        string = "[City] ({}) {}".format(city.id, city.__dict__)
         self.assertEqual(string, str(city))
